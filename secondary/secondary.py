@@ -2,30 +2,37 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 import json
 import time
+import logging
 
 memory_list = list()
-#FORMAT = '%(asctime)s %(message)s'
-#logging.basicConfig(format=FORMAT, level=1)
+FORMAT = '%(asctime)s %(message)s'
+logging.basicConfig(format=FORMAT, level=1)
 
 class RequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Type', 'text/html')
         self.end_headers()
-        self.wfile.write(json.dumps(memory_list).encode())
+        response = ""
+        for row in memory_list:
+            response += row['msg'] + '</br>\n'
+        self.wfile.write(response.encode())
 
     def do_POST(self):
-        # time.sleep(1)
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
-        memory_list.append(json.loads(body))
-        self.send_response(200)
+        data = json.loads(json.loads(body))
+        try:
+            memory_list.append(data)
+            logging.info('Saved to ' + self.headers['Host'] + ': '
+                         + 'id=' + str(memory_list[-1]['id']) + ' msg=' + memory_list[-1]['msg'])
+            self.send_response(200)
+        except:
+            logging.error('Error on ' + self.headers['Host'] + ': '
+                         + 'id=' + str(data['id']) + ' msg=' + data['msg'])
+            self.send_response(408)
         self.end_headers()
-        response = BytesIO()
-        response.write(b'Secondary_1 received: ')
-        response.write(body)
-        self.wfile.write(response.getvalue())
 
 def main():
     port = 8081

@@ -7,7 +7,7 @@ import multiprocessing
 import logging
 
 secondaries = [{'name': 'secondary-1', 'address': 'http://secondary-1:8081'},
-               {'name': 'secondary-2', 'address': 'http://secondary-2:8081'}]
+                {'name': 'secondary-2', 'address': 'http://secondary-2:8081'}]
 memory_list = list()
 id_count = 1
 FORMAT = '%(asctime)s %(message)s'
@@ -17,7 +17,10 @@ logging.basicConfig(format=FORMAT, level=1)
 def send_to_secondary(secondaries, value):
     logging.info('Replication to ' + secondaries['name'] + ' ' + secondaries['address'] + ': '
                  + 'id=' + str(value['id']) + ' msg=' + value['msg'])
-    return requests.post(secondaries['address'], json=value).ok
+    try:
+        return secondaries['name'], requests.post(secondaries['address'], json=json.dumps(value), timeout=5).ok
+    except:
+        return secondaries['name'], False
 
 
 def message_handler(val):
@@ -26,28 +29,36 @@ def message_handler(val):
     memory_list.append(new_value)
     logging.info('Write in memory: id=' + str(id_count) + ' msg=' + val)
     id_count += 1
+    result = True
     pool = multiprocessing.Pool(processes=2)
-    pool.map(partial(send_to_secondary, value=new_value), secondaries)
-
+    for response in pool.map(partial(send_to_secondary, value=new_value), secondaries):
+        if not response[1]:
+            logging.error('Error with replication to ' + response[0])
+            result = False
+        else:
+            logging.info('Replication to ' + response[0] + ' completed')
+    return result
 
 class RequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Type', 'text/html')
         self.end_headers()
-        self.wfile.write(json.dumps(memory_list).encode())
+        response = ""
+        for row in memory_list:
+            response += row['msg'] + '</br>\n'
+        self.wfile.write(response.encode())
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         body = self.rfile.read(content_length)
-        self.send_response(200)
+        if message_handler(body.decode()):
+            self.send_response(200)
+        else:
+            self.send_response(408)
         self.end_headers()
-        response = BytesIO()
-        response.write(b'Received: ')
-        response.write(body)
-        message_handler(body.decode())
-        self.wfile.write(response.getvalue())
+
 
 def main():
     port = 8080
