@@ -9,7 +9,7 @@ services:
 
   secondary-1:
     hostname: secondary-1
-    build: secondary/
+    build: secondary-1/
     ports:
       - "8081:8081"
     networks:
@@ -17,9 +17,9 @@ services:
 
   secondary-2:
     hostname: secondary-2
-    build: secondary/
+    build: secondary-2/
     ports:
-      - "8082:8081"
+      - "8082:8082"
     networks:
       - cluster-network
 

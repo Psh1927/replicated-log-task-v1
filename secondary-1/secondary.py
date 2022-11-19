@@ -1,12 +1,12 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from io import BytesIO
 import json
-import time
 import logging
 
 memory_list = list()
 FORMAT = '%(asctime)s %(message)s'
 logging.basicConfig(format=FORMAT, level=1)
+
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -14,9 +14,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-Type', 'text/html')
         self.end_headers()
+        if len(memory_list) == 0:
+            self.wfile.write("Empty list".encode())
         response = ""
         for row in memory_list:
-            response += row['msg'] + '</br>\n'
+            response += row['msg'] + '\n'
         self.wfile.write(response.encode())
 
     def do_POST(self):
@@ -33,6 +35,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                          + 'id=' + str(data['id']) + ' msg=' + data['msg'])
             self.send_response(408)
         self.end_headers()
+
 
 def main():
     port = 8081
